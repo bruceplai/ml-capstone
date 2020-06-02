@@ -12,7 +12,7 @@ from sklearn.metrics import mean_absolute_error
 
 tf.config.set_visible_devices([], 'GPU')
 
-def avg_of_neighbors(row, col_name, cols_list):
+def avg_of_neighbors(row, col_name, cols_list, round_result=True):
     lat_diff = 0.002
     long_diff = 0.002
     cols_list = list(cols_list)
@@ -21,13 +21,22 @@ def avg_of_neighbors(row, col_name, cols_list):
     latitude = row[cols_list.index('latitude')]
     longitude = row[cols_list.index('longitude')]
     if math.isnan(item):
-        item = listings_clean[col_name].loc[
-            (listings_clean.latitude > latitude - lat_diff) &
-            (listings_clean.latitude < latitude + lat_diff) &
-            (listings_clean.longitude > longitude - long_diff) &
-            (listings_clean.longitude < longitude + long_diff) &
-            (listings_clean.room_type == room_type)
-        ].groupby(by=listings_clean.neighbourhood).mean().round()[0]
+        if round_result:
+            item = listings_clean[col_name].loc[
+                (listings_clean.latitude > latitude - lat_diff) &
+                (listings_clean.latitude < latitude + lat_diff) &
+                (listings_clean.longitude > longitude - long_diff) &
+                (listings_clean.longitude < longitude + long_diff) &
+                (listings_clean.room_type == room_type)
+            ].mean().round()
+        else:
+            item = listings_clean[col_name].loc[
+                (listings_clean.latitude > latitude - lat_diff) &
+                (listings_clean.latitude < latitude + lat_diff) &
+                (listings_clean.longitude > longitude - long_diff) &
+                (listings_clean.longitude < longitude + long_diff) &
+                (listings_clean.room_type == room_type)
+            ].mean()
         row[cols_list.index(col_name)] = item
     return row
 
@@ -68,16 +77,14 @@ listings_clean = listings_df.drop(['listing_url', 'scrape_id', 'last_scraped', '
     'square_feet', 'property_type', 'minimum_nights_avg_ntm',
     'maximum_nights_avg_ntm', 'price', 'minimum_nights', 'maximum_nights', 'availability_30',
     'availability_60', 'availability_90', 'availability_365',
-    'review_scores_rating', 'number_of_reviews', 'reviews_per_month', 'summary'], axis=1)
+    'review_scores_rating', 'number_of_reviews', 'reviews_per_month', 'summary',
+    'neighbourhood_cleansed', 'neighbourhood_group_cleansed'], axis=1)
 
-listings_clean.rename(columns={
-    'neighbourhood_cleansed':'neighbourhood',
-    'neighbourhood_group_cleansed': 'neighbourhood_group'
-}, inplace=True)
 listings_clean = listings_clean.loc[
     (listings_clean.room_type == 'Entire home/apt') |
     (listings_clean.room_type == 'Private room')
 ]
+listings_clean['entire_home_apt'] = np.where(listings_clean.room_type == 'Entire home/apt', 1, 0)
 listings_clean = listings_clean.drop_duplicates(subset=['latitude', 'longitude']).reset_index(drop=True)
 
 listings_clean = listings_clean.loc[
@@ -215,14 +222,14 @@ calendar_averages = calendar_averages.loc[
 listings_clean = listings_clean.loc[listings_clean.id.isin(calendar_averages.index)]
 listings_merge = pd.merge(listings_clean, calendar_averages, left_on='id', right_index=True)
 
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_year_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_winter_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_spring_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_summer_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_fall_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_jan_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_jun_avg', cols_list=listings_merge.columns, axis=1)
-listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_dec_avg', cols_list=listings_merge.columns, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_year_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_winter_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_spring_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_summer_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_fall_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_jan_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_jun_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
+listings_merge = listings_merge.apply(avg_of_neighbors, col_name='price_dec_avg', cols_list=listings_merge.columns, round_result=False, axis=1)
 
 
 price_bins = [0, 50, 100, 150, 200, 250, 300, 350, 400, np.inf]
@@ -263,15 +270,53 @@ def base_model():
     return model
 
 model = base_model()
-model.fit(X_train, y_train, batch_size=512, epochs=3, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
+model.fit(X_train, y_train, batch_size=512, epochs=8, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
 sca.update_state(y_test, model.predict(X_test))
 print("Price bin prediction accuracy from listing descriptions:", sca.result().numpy())
 
 listings_merge['pred_price_year_avg_bin'] = model.predict(listings_merge.description, use_multiprocessing=1).argmax(axis=1)
 
+# listings_merge['is_high_price_range'] = np.where(listings_merge.price_year_avg >= 300, 1, 0)
 
-full_features = listings_merge.drop(['id', 'room_type', 'neighbourhood', 'neighbourhood_group'], axis=1)
+# adam = tf.keras.optimizers.Adam(lr=0.001)
+# bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+# es = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=4)
+
+# X_train, X_val_test, y_train, y_val_test = train_test_split(
+#     listings_merge.description,
+#     listings_merge.is_high_price_range,
+#     test_size=0.4,
+#     stratify=listings_merge.is_high_price_range,
+#     random_state=42
+# )
+
+# X_val, X_test, y_val, y_test = train_test_split(
+#     X_val_test,
+#     y_val_test,
+#     test_size=0.5,
+#     stratify=y_val_test,
+#     random_state=42
+# )
+
+# def base_model():
+#     x = tf.keras.layers.Input(shape=[], dtype=tf.string)
+#     y = hub.KerasLayer('https://tfhub.dev/google/universal-sentence-encoder/4', trainable=True)(x)
+#     z = tf.keras.layers.Dense(1, activation='sigmoid')(y)
+#     model = tf.keras.models.Model(x, z)
+#     model.compile(optimizer=adam, loss=bce, metrics=['accuracy'])
+#     return model
+
+# model = base_model()
+# model.fit(X_train, y_train, batch_size=512, epochs=3, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
+
+# test_results = model.evaluate(X_test, y_test, verbose=1)
+# print(f'Price level prediction test results - Loss: {test_results[0]} - Accuracy: {test_results[1]*100}%')
+
+# listings_merge['is_pred_high_price_range'] = model.predict(listings_merge.description, use_multiprocessing=1).round()
+
+full_features = listings_merge.drop(['id', 'room_type'], axis=1)
 full_features = full_features.drop(['price_year_avg_bin', 'description', 'amenities'], axis=1)
+# full_features = full_features.drop(['is_high_price_range', 'description', 'amenities'], axis=1)
 
 
 combo_list = [
