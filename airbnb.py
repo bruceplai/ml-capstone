@@ -1,4 +1,5 @@
 import math
+import time
 import string
 
 import pandas as pd
@@ -9,6 +10,8 @@ import tensorflow_hub as hub
 from xgboost.sklearn import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
+from sklearn2pmml import sklearn2pmml
+from sklearn2pmml.pipeline import PMMLPipeline
 
 tf.config.set_visible_devices([], 'GPU')
 
@@ -53,9 +56,10 @@ def cleanup_amenities(text):
     text = text.replace(' ', '_').replace('-', '_')
     return text.split(",")
 
-
-listings_df = pd.read_csv('listings.csv.gz')
-calendar_df = pd.read_csv('calendar.csv.gz', parse_dates=['date'])
+listing_url = 'http://data.insideairbnb.com/united-states/ny/new-york-city/2019-12-04/data/listings.csv.gz'
+calendar_url = 'http://data.insideairbnb.com/united-states/ny/new-york-city/2019-12-04/data/calendar.csv.gz'
+listings_df = pd.read_csv(listing_url)
+calendar_df = pd.read_csv(calendar_url, parse_dates=['date'])
 
 listings_clean = listings_df.drop(['listing_url', 'scrape_id', 'last_scraped', 'name', 'space',
     'experiences_offered', 'neighborhood_overview', 'notes', 'transit', 'access', 'interaction',
@@ -104,10 +108,10 @@ listings_clean = listings_clean.join(amenities_sparse)
 
 
 calendar_clean = calendar_df[calendar_df.listing_id != 15268792]
-calendar_clean['date'] = calendar_clean['date'].mask(
-    calendar_clean['date'].dt.year == 2020,
-    calendar_clean['date'] - pd.to_timedelta(365, unit='D') + pd.to_timedelta(12, unit='h'))
-calendar_clean['date'] = calendar_clean['date'].dt.floor('D')
+# calendar_clean['date'] = calendar_clean['date'].mask(
+#     calendar_clean['date'].dt.year == 2020,
+#     calendar_clean['date'] - pd.to_timedelta(365, unit='D') + pd.to_timedelta(12, unit='h'))
+# calendar_clean['date'] = calendar_clean['date'].dt.floor('D')
 
 calendar_clean = calendar_clean.drop_duplicates(subset=['listing_id', 'date']).reset_index(drop=True)
 calendar_clean = calendar_clean[calendar_clean.listing_id.isin(listings_clean.id)]
@@ -239,6 +243,26 @@ listings_merge['price_year_avg_bin'] = pd.cut(
     price_bins,
     labels=bins
 ).astype('int')
+listings_merge['price_winter_avg_bin'] = pd.cut(
+    listings_merge.price_winter_avg,
+    price_bins,
+    labels=bins
+).astype('int')
+listings_merge['price_spring_avg_bin'] = pd.cut(
+    listings_merge.price_spring_avg,
+    price_bins,
+    labels=bins
+).astype('int')
+listings_merge['price_summer_avg_bin'] = pd.cut(
+    listings_merge.price_summer_avg,
+    price_bins,
+    labels=bins
+).astype('int')
+listings_merge['price_fall_avg_bin'] = pd.cut(
+    listings_merge.price_fall_avg,
+    price_bins,
+    labels=bins
+).astype('int')
 
 adam = tf.keras.optimizers.Adam(lr=0.001)
 scce = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -270,7 +294,7 @@ def base_model():
     return model
 
 model = base_model()
-model.fit(X_train, y_train, batch_size=512, epochs=8, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
+model.fit(X_train, y_train, batch_size=512, epochs=5, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
 sca.update_state(y_test, model.predict(X_test))
 print("Price bin prediction accuracy from listing descriptions:", sca.result().numpy())
 
@@ -319,18 +343,19 @@ full_features = full_features.drop(['price_year_avg_bin', 'description', 'amenit
 # full_features = full_features.drop(['is_high_price_range', 'description', 'amenities'], axis=1)
 
 
-combo_list = [
-    ['available_year_avg', 'min_nights_year_avg', 'price_year_avg']
-#     ['available_winter_avg', 'min_nights_winter_avg', 'price_winter_avg'],
-#     ['available_spring_avg', 'min_nights_spring_avg', 'price_spring_avg'],
-#     ['available_summer_avg', 'min_nights_summer_avg', 'price_summer_avg'],
-#     ['available_fall_avg', 'min_nights_fall_avg', 'price_fall_avg'],
-#     ['available_jan_avg', 'min_nights_jan_avg', 'price_jan_avg'],
-#     ['available_jun_avg', 'min_nights_jun_avg', 'price_jun_avg'],
-#     ['available_dec_avg', 'min_nights_dec_avg', 'price_dec_avg']
-]
+def fit_save_model(model, features, labels):
+    pipeline = PMMLPipeline([('classifier', model)])
+    pipeline.fit(features, labels)
+    timestr = time.strftime('%Y%m%d_%H%M%S')
+    sklearn2pmml(pipeline, ''.join(('model_', timestr, '.pmml')))
 
 def run_gb_model(data_set_name, features):
+    combo_list = [
+        ['available_year_avg', 'min_nights_year_avg', 'price_year_avg']
+    #     ['available_winter_avg', 'min_nights_winter_avg', 'price_winter_avg'],
+    #     ['available_spring_avg', 'min_nights_spring_avg', 'price_spring_avg'],
+    #     ['available_summer_avg', 'min_nights_summer_avg', 'price_summer_avg']
+    ]
     for combo in combo_list:
         X_base = features.drop([
             'price_year_avg', 'price_winter_avg', 'price_spring_avg', 'price_summer_avg', 'price_fall_avg',
@@ -355,10 +380,11 @@ def run_gb_model(data_set_name, features):
             n_jobs=-1
         )
 
-        clf.fit(X_train, y_train)
-        print('Gradient boost model for', data_set_name)
-        print('Target label:', combo[2])
-        print('R^2:', clf.score(X_test, y_test))
-        print('MAE:', mean_absolute_error(y_test, clf.predict(X_test)))
+        fit_save_model(clf, X_train, y_train)
+
+        # print('Gradient boost model for', data_set_name)
+        # print('Target label:', combo[2])
+        # print('R^2:', clf.score(X_test, y_test))
+        # print('MAE:', mean_absolute_error(y_test, clf.predict(X_test)))
 
 run_gb_model('both homes and rooms', full_features)
