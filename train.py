@@ -10,5 +10,6 @@ calendar_url = 'http://data.insideairbnb.com/united-states/ny/new-york-city/2019
 # listing_url = 'http://data.insideairbnb.com/united-states/ny/new-york-city/2020-06-08/data/listings.csv.gz'
 # calendar_url = 'http://data.insideairbnb.com/united-states/ny/new-york-city/2020-06-08/data/calendar.csv.gz'
 
-full_features = Merge(listings_url, calendar_url).generate_features()
+full_features, aux_model_file = Merge(listings_url, calendar_url).generate_features()
 logger.info(f'Trained airbnb pricing model saved as: {Model(full_features).train_and_save()}')
+logger.info(f'Trained auxiliary NLP pricing bin model saved as: {aux_model_file}')

@@ -1,3 +1,5 @@
 .ipynb_checkpoints/
 __pycache__/
 .vscode/
+model_*
+aux_model_*

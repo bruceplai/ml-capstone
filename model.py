@@ -52,6 +52,7 @@ class Model:
             self.logger.info(f'Target label: {combo[2]}')
             self.logger.info(f'R^2: {model.score(X_test, y_test)}')
             self.logger.info(f'MAE: {mean_absolute_error(y_test, model.predict(X_test))}')
+            X_test.iloc[5000:5001].to_json(path_or_buf='sample.json', orient='records')
             return model
     
     def train_and_save(self):
