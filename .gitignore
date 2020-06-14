@@ -1,4 +1,3 @@
 .ipynb_checkpoints/
-AB_NYC_2019.csv
-listings.csv
-calendar.csv
+__pycache__/
+.vscode/
