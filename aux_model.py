@@ -15,8 +15,8 @@ class AuxModel:
 
     def __save_model(self, model):
         timestr = time.strftime('%Y%m%d_%H%M%S')
-        file_name = ''.join(('aux_model_', timestr, '.h5'))
-        model.save(file_name)
+        file_name = ''.join(('aux_model_', timestr, '.ckpt'))
+        model.save_weights(file_name)
         return file_name
 
     def __train_model(self, data):

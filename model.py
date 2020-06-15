@@ -17,10 +17,6 @@ class Model:
             pickle.dump(model, model_file)
         return file_name
 
-    def __load_model(self, model_file):
-        with open(model_file, 'rb') as file_name:
-            return pickle.load(file_name)
-
     def __train_model(self, features):
         combo_list = [
             ['available_year_avg', 'min_nights_year_avg', 'price_year_avg']
@@ -52,7 +48,6 @@ class Model:
             self.logger.info(f'Target label: {combo[2]}')
             self.logger.info(f'R^2: {model.score(X_test, y_test)}')
             self.logger.info(f'MAE: {mean_absolute_error(y_test, model.predict(X_test))}')
-            X_test.iloc[5000:5001].to_json(path_or_buf='sample.json', orient='records')
             return model
     
     def train_and_save(self):
