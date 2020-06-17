@@ -1,0 +1,7 @@
+pandas
+tensorflow
+tensorflow_hub
+scikit-learn
+xgboost
+fastapi
+uvicorn
