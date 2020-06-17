@@ -9,7 +9,7 @@ app = FastAPI()
 logger = logging.getLogger('app')
 logger.setLevel(logging.DEBUG)
 
-inf = Inference(model_save='model_20200616_181152', aux_model_save='aux_model_20200616_181134.ckpt')
+inf = Inference(model_save='model_default', aux_model_save='aux_model_default.ckpt')
 
 @app.get("/api")
 def default():

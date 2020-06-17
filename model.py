@@ -1,3 +1,4 @@
+import os
 import time
 import pickle
 import logging
@@ -11,8 +12,11 @@ class Model:
         self.logger = logging.getLogger('train.model')
 
     def __save_model(self, model):
-        timestr = time.strftime('%Y%m%d_%H%M%S')
-        file_name = ''.join(('model_', timestr))
+        if not os.path.exists('model_default'):
+            file_name = 'model_default'
+        else:
+            timestr = time.strftime('%Y%m%d_%H%M%S')
+            file_name = ''.join(('model_', timestr))
         with open(file_name, 'wb') as model_file:
             pickle.dump(model, model_file)
         return file_name

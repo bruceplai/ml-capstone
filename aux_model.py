@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import numpy as np
@@ -14,8 +15,11 @@ class AuxModel:
         tf.config.set_visible_devices([], 'GPU')
 
     def __save_model(self, model):
-        timestr = time.strftime('%Y%m%d_%H%M%S')
-        file_name = ''.join(('aux_model_', timestr, '.ckpt'))
+        if not os.path.exists('aux_model_default.ckpt.index'):
+            file_name = 'aux_model_default.ckpt'
+        else:
+            timestr = time.strftime('%Y%m%d_%H%M%S')
+            file_name = ''.join(('aux_model_', timestr, '.ckpt'))
         model.save_weights(file_name)
         return file_name
 
