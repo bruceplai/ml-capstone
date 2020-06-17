@@ -12,14 +12,15 @@ class Model:
         self.logger = logging.getLogger('train.model')
 
     def __save_model(self, model):
-        if not os.path.exists('model_default'):
-            file_name = 'model_default'
+        if not os.path.exists(os.path.join('model_save', 'model_default')):
+            file_path = os.path.join('model_save', 'model_default')
         else:
             timestr = time.strftime('%Y%m%d_%H%M%S')
             file_name = ''.join(('model_', timestr))
-        with open(file_name, 'wb') as model_file:
+            file_path = os.path.join('model_save', file_name)
+        with open(file_path, 'wb') as model_file:
             pickle.dump(model, model_file)
-        return file_name
+        return file_path
 
     def __train_model(self, features):
         combo_list = [

@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 from fastapi import FastAPI
@@ -9,7 +10,10 @@ app = FastAPI()
 logger = logging.getLogger('app')
 logger.setLevel(logging.DEBUG)
 
-inf = Inference(model_save='model_default', aux_model_save='aux_model_default.ckpt')
+model_save_file = os.path.join('model_save', 'model_default')
+aux_model_save_file = os.path.join('model_save', 'aux_model_default.ckpt')
+
+inf = Inference(model_save=model_save_file, aux_model_save=aux_model_save_file)
 
 @app.get("/api")
 def default():

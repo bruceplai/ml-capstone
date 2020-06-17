@@ -15,13 +15,14 @@ class AuxModel:
         tf.config.set_visible_devices([], 'GPU')
 
     def __save_model(self, model):
-        if not os.path.exists('aux_model_default.ckpt.index'):
-            file_name = 'aux_model_default.ckpt'
+        if not os.path.exists(os.path.join('model_save', 'aux_model_default.ckpt.index')):
+            file_path = os.path.join('model_save', 'aux_model_default.ckpt')
         else:
             timestr = time.strftime('%Y%m%d_%H%M%S')
             file_name = ''.join(('aux_model_', timestr, '.ckpt'))
-        model.save_weights(file_name)
-        return file_name
+            file_path = os.path.join('model_save', file_name)
+        model.save_weights(file_path)
+        return file_path
 
     def __train_model(self, data):
         price_bins = [0, 50, 100, 150, 200, 250, 300, 350, 400, np.inf]
