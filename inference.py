@@ -4,33 +4,36 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
 
-logger = logging.getLogger('inference')
-logger.setLevel(logging.DEBUG)
+class Inference():
+    def __init__(self, model_save, aux_model_save):
+        self.logger = logging.getLogger('app.inference')
+        self.aux_model_url = 'https://tfhub.dev/google/universal-sentence-encoder/4'
+        self.aux_model = self._load_aux_model(aux_model_save)
+        self.main_model = self._load_main_model(model_save)
 
-aux_model_url = 'https://tfhub.dev/google/universal-sentence-encoder/4'
-adam = tf.keras.optimizers.Adam(lr=0.001)
-scce = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-sca = tf.keras.metrics.SparseCategoricalAccuracy()
-es = tf.keras.callbacks.EarlyStopping(monitor="loss", patience=4)
+    def _load_aux_model(self, model_weight_file):
+        adam = tf.keras.optimizers.Adam(lr=0.001)
+        scce = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        sca = tf.keras.metrics.SparseCategoricalAccuracy()
 
-def base_model():
-    x = tf.keras.layers.Input(shape=[], dtype=tf.string)
-    y = hub.KerasLayer(aux_model_url, trainable=True)(x)
-    z = tf.keras.layers.Dense(9, activation='softmax')(y)
-    model = tf.keras.models.Model(x, z)
-    model.compile(optimizer=adam, loss=scce, metrics=[sca])
-    return model
+        def base_model():
+            x = tf.keras.layers.Input(shape=[], dtype=tf.string)
+            y = hub.KerasLayer(self.aux_model_url, trainable=True)(x)
+            z = tf.keras.layers.Dense(9, activation='softmax')(y)
+            model = tf.keras.models.Model(x, z)
+            model.compile(optimizer=adam, loss=scce, metrics=[sca])
+            return model
 
-def load_model(model_file):
-    with open(model_file, 'rb') as file_name:
-        return pickle.load(file_name)
+        model = base_model()
+        model.load_weights(model_weight_file)
+        return model
 
-aux_model = base_model()
-aux_model.load_weights('aux_model_20200614_221237.ckpt')
-model = load_model('model_20200614_221254')
+    def _load_main_model(self, model_file):
+        with open(model_file, 'rb') as file_name:
+            return pickle.load(file_name)
 
-
-input_data = pd.read_json('sample.json')
-input_data['pred_price_year_avg_bin'] = aux_model.predict(input_data.description, use_multiprocessing=1).argmax(axis=1)
-input_data = input_data.drop(['description'], axis=1)
-logger.info(model.predict(input_data))
+    def get_model_pred(self, input_data, description = None):
+        data = pd.DataFrame([input_data])
+        if description:
+            data['pred_price_year_avg_bin'] = self.aux_model.predict([description], use_multiprocessing=1).argmax(axis=1)
+        return self.main_model.predict(data)[0]

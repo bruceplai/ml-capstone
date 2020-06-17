@@ -92,6 +92,7 @@ class Listings:
 
         data['amenities'] = data['amenities'].apply(cleanup_amenities)
         amenities_sparse = data.amenities.str.join('|').str.get_dummies()
+        amenities_sparse.rename(columns={'24_hour_check_in': 'all_day_check_in', '_toilet': 'toilet'}, inplace=True)
         data = data.join(amenities_sparse)
         return data
 

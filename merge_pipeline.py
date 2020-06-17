@@ -67,4 +67,13 @@ class Merge():
         merged_features = self.__fill_missing_data(merged_features)
         merged_features, aux_model_file = AuxModel(merged_features).train_and_save()
         merged_features = self.__drop_data(merged_features)
+        default_features = merged_features.mean(axis=0).drop(labels=[
+            'price_year_avg', 'price_winter_avg', 'price_spring_avg', 'price_summer_avg', 'price_fall_avg',
+            'available_winter_avg', 'available_spring_avg', 'available_summer_avg', 'available_fall_avg',
+            'min_nights_winter_avg', 'min_nights_spring_avg', 'min_nights_summer_avg', 'min_nights_fall_avg'
+        ])
+        for idx, val in default_features.items():
+            if idx != 'latitude' and idx != 'longitude' and idx != 'min_nights_year_avg' and idx != 'available_year_avg':
+                default_features[idx] = round(val)
+        default_features.to_json('default_features.json')
         return merged_features, aux_model_file
