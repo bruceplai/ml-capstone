@@ -63,7 +63,7 @@ class AuxModel:
             return model
 
         model = base_model()
-        model.fit(X_train, y_train, batch_size=128, epochs=5, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
+        model.fit(X_train, y_train, batch_size=128, epochs=3, validation_data=(X_val, y_val), callbacks=[es], use_multiprocessing=1)
         sca.update_state(y_test, model.predict(X_test))
         self.logger.info(f'Price bin prediction accuracy from listing descriptions: {sca.result().numpy()}')
         return model
