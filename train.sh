@@ -1,1 +1,3 @@
-python train.py
+#!/bin/sh
+
+exec python train.py
