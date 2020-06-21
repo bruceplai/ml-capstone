@@ -209,4 +209,6 @@ Response:
 
 Currently retraining can be done by replacing the dataset url in airbnb.py.  This can be streamlined to a process that is run regularly (perhaps weekly or monthly) as new data is available.  Unfortunately, the <a href="http://insideairbnb.com/get-the-data.html">data source</a> does not appear to have an API to get the latest data.  Maybe a date-based process can be implemented to check for updated data sets.
 
+Another area of enhancement could be to allow the user to input a listing address and have the model API query Google Maps API for latitude and longitude values.
+
 Suggestions for other fixes and improvements are welcome as well!
