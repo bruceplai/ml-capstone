@@ -189,12 +189,12 @@ Example of request body and API response (tested through Postman, but a simple c
 Request:
 ```json
 {
-	"bedrooms": 1,
+    "bedrooms": 1,
     "latitude": 40.7382952399,
     "longitude": -73.9601208342,
-	"bathrooms": 2.5,
-	"all_day_check_in": 1,
-	"accommodates": 4
+    "bathrooms": 2.5,
+    "all_day_check_in": 1,
+    "accommodates": 4
 }
 ```
 
